@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func MongodbConnect() (*mongo.Client, func() error, error) {
+func Connect() (*mongo.Client, func() error, error) {
 
 	mongoURI := "mongodb://localhost:27017"
 

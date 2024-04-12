@@ -128,7 +128,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	u, err := url.Parse("#main-content")
+	u, err := url.Parse("/lol")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,5 +140,26 @@ func main() {
 	normilized := purell.NormalizeURL(test_url, purell.FlagsUnsafeGreedy)
 
 	fmt.Println(normilized)
+
+	// mongoDBName := "Crawler"
+	// mongoCollectionName := "URLs"
+
+	// client, disconnect, err := mongodb.MongodbConnect()
+
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// defer func() {
+	// 	if err := disconnect(); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }()
+
+	// redisClient := db.Connect()
+
+	// coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+
+	// mongodb.SaveFromRedisToMongo(coll, redisClient)
 
 }
