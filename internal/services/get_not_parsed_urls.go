@@ -25,14 +25,14 @@ func GetNotParsedUrls() []entities.Url {
 	coll := client.Database(mongoDBName).Collection(mongoCollectionName)
 
 	filter := bson.M{"parsed": false}
-	cursor, err := coll.Find(context.TODO(), filter)
+	cursor, err := coll.Find(context.Background(), filter)
 
 	errorhandlers.FailOnError(err)
 
-	defer cursor.Close(context.TODO())
+	defer cursor.Close(context.Background())
 
 	var urls []entities.Url
-	err = cursor.All(context.TODO(), &urls)
+	err = cursor.All(context.Background(), &urls)
 
 	errorhandlers.FailOnError(err)
 

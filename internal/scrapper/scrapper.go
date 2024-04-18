@@ -37,6 +37,11 @@ func Scrapper(url string, parsedData chan<- entities.Url, parsedUrls chan<- stri
 			log.Println(err)
 		}
 
+		if base.Scheme != "https" && base.Scheme != "http" {
+			log.Println("Not valid scheme")
+			return
+		}
+
 		u, err := urlpkg.Parse(link)
 		if err != nil {
 			log.Println(err)
@@ -44,16 +49,22 @@ func Scrapper(url string, parsedData chan<- entities.Url, parsedUrls chan<- stri
 
 		urlToNormalize := base.ResolveReference(u)
 
-		normilizedUrl := purell.NormalizeURL(urlToNormalize, purell.FlagsUnsafeGreedy)
+		flags := purell.FlagsUsuallySafeGreedy | purell.FlagRemoveDirectoryIndex | purell.FlagRemoveFragment | purell.FlagRemoveDuplicateSlashes | purell.FlagRemoveWWW | purell.FlagSortQuery
+
+		normilizedUrl := purell.NormalizeURL(urlToNormalize, flags)
 
 		parsedUrls <- normilizedUrl
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
 		result.Error = err.Error()
+		result.Link = url
+		result.Parsed = false
+		parsedData <- result
 	})
 
 	c.OnScraped(func(r *colly.Response) {
+		result.Link = url
 		result.Parsed = true
 		parsedData <- result
 	})

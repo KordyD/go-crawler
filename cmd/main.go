@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/url"
 
-	"github.com/PuerkitoBio/purell"
+	"github.com/kordyd/go-crawler/internal/db/mongodb"
+	"github.com/kordyd/go-crawler/internal/db/redis"
+	"github.com/kordyd/go-crawler/internal/services"
 )
 
 // func main() {
@@ -123,43 +123,44 @@ import (
 func main() {
 	// https://go-colly.org/
 
-	base, err := url.Parse("https://go-colly.org/")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// base, err := url.Parse("http://go-colly.org/")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(base.Scheme)
 
-	u, err := url.Parse("/lol")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	test_url := base.ResolveReference(u)
-
-	fmt.Println(test_url)
-
-	normilized := purell.NormalizeURL(test_url, purell.FlagsUnsafeGreedy)
-
-	fmt.Println(normilized)
-
-	// mongoDBName := "Crawler"
-	// mongoCollectionName := "URLs"
-
-	// client, disconnect, err := mongodb.MongodbConnect()
-
+	// u, err := url.Parse("/lol")
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 
-	// defer func() {
-	// 	if err := disconnect(); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }()
+	// test_url := base.ResolveReference(u)
 
-	// redisClient := db.Connect()
+	// fmt.Println(test_url)
 
-	// coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+	// normilized := purell.NormalizeURL(test_url, purell.FlagsUnsafeGreedy)
 
-	// mongodb.SaveFromRedisToMongo(coll, redisClient)
+	// fmt.Println(normilized)
+
+	mongoDBName := "Crawler"
+	mongoCollectionName := "URLs"
+
+	client, disconnect, err := mongodb.Connect()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer func() {
+		if err := disconnect(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	redisClient := redis.Connect()
+
+	coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+
+	services.SaveParsedUrls(coll, redisClient)
 
 }

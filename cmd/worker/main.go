@@ -9,6 +9,7 @@ import (
 	"github.com/kordyd/go-crawler/internal/entities"
 	rabbitmq "github.com/kordyd/go-crawler/internal/rabbitMQ"
 	"github.com/kordyd/go-crawler/internal/scrapper"
+	"github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -34,10 +35,20 @@ func main() {
 		log.Panicln(err)
 	}
 
+	err = ch.Qos(
+		1,
+		0,
+		false,
+	)
+
+	if err != nil {
+		log.Panicln(err)
+	}
+
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
-		true,   // auto-ack
+		false,  // auto-ack
 		false,  // exclusive
 		false,  // no-local
 		false,  // no-wait
@@ -61,14 +72,9 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for data := range parsedData {
-				_, err = client.HSet(context.TODO(), data.Link, entities.Url{
-					Link:    data.Link,
-					Parsed:  true,
-					Error:   data.Error,
-					Content: data.Content,
-				}).Result()
+				_, err = client.HSet(context.Background(), data.Link, "link", data.Link, "parsed", data.Parsed, "error", data.Error, "content", data.Content).Result()
 				if err != nil {
-					log.Println(err, "err in parseddata")
+					log.Println(err)
 					continue
 				}
 				log.Printf("Set data in redis: %s", data.Link)
@@ -77,19 +83,15 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for url := range parsedUrls {
-				exists, err := client.Exists(context.TODO(), url).Result()
+				exists, err := client.Exists(context.Background(), url).Result()
 				if err != nil {
 					log.Println(err)
 					continue
 				}
 				if exists == 0 {
-					_, err = client.HSet(context.TODO(), url, entities.Url{
-						Link:    url,
-						Parsed:  false,
-						Error:   "",
-						Content: ""}).Result()
+					_, err = client.HSet(context.Background(), url, "link", url, "parsed", false, "error", "", "content", "").Result()
 					if err != nil {
-						log.Println(err, "err in parsedurl")
+						log.Println(err)
 						continue
 					}
 					log.Printf("Set url to parse in redis: %s", url)
@@ -105,6 +107,20 @@ func main() {
 	for d := range msgs {
 		log.Printf("Received a message: %s", d.Body)
 		go scrapper.Scrapper(string(d.Body), parsedData, parsedUrls)
+		err := ch.PublishWithContext(context.Background(),
+			"",
+			d.ReplyTo,
+			false,
+			false,
+			amqp091.Publishing{
+				ContentType:   "text/plain",
+				CorrelationId: d.CorrelationId,
+				Body:          []byte("done"),
+			})
+		if err != nil {
+			log.Panicln(err)
+		}
+		d.Ack(false)
 	}
 
 	wg.Wait()

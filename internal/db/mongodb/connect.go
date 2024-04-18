@@ -11,14 +11,14 @@ func Connect() (*mongo.Client, func() error, error) {
 
 	mongoURI := "mongodb://localhost:27017"
 
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(mongoURI))
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongoURI))
 
 	if err != nil {
 		return nil, nil, err
 	}
 
 	closeFunc := func() error {
-		err := client.Disconnect(context.TODO())
+		err := client.Disconnect(context.Background())
 		return err
 	}
 
