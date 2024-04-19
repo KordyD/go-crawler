@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"log"
-	"math/rand"
+	"sync"
 	"time"
 
+	uuid "github.com/google/uuid"
 	errorhandlers "github.com/kordyd/go-crawler/internal/error_handlers"
 	rabbitmq "github.com/kordyd/go-crawler/internal/rabbitMQ"
 	"github.com/kordyd/go-crawler/internal/services"
@@ -54,59 +55,43 @@ func main() {
 
 	urls := services.GetNotParsedUrls()
 
+	var wg sync.WaitGroup
+	wg.Add(len(urls))
+
 	for _, url := range urls {
-		corrId := randomString(32)
-		body := url.Link
-		err := ch.PublishWithContext(ctx,
-			"",          // exchange
-			"url_queue", // routing key
-			false,       // mandatory
-			false,       // immediate
-			amqp.Publishing{
-				ReplyTo:       q.Name,
-				ContentType:   "text/plain",
-				CorrelationId: corrId,
-				Body:          []byte(body),
-			})
-		errorhandlers.FailOnError(err)
+		go func(url string) {
+			defer func() {
+				wg.Done()
+				log.Println("Url done")
+			}()
 
-		log.Printf(" [x] Sent %s\n", body)
+			corrId := uuid.NewString()
+			body := url
+			err := ch.PublishWithContext(ctx,
+				"",          // exchange
+				"url_queue", // routing key
+				false,       // mandatory
+				false,       // immediate
+				amqp.Publishing{
+					ReplyTo:       q.Name,
+					ContentType:   "text/plain",
+					CorrelationId: corrId,
+					Body:          []byte(body),
+				})
+			errorhandlers.FailOnError(err)
 
-		for d := range msgs {
-			if corrId == d.CorrelationId {
-				log.Println(string(d.Body))
-				break
+			log.Printf(" [x] Sent %s\n", body)
+
+			for d := range msgs {
+				if corrId == d.CorrelationId {
+					log.Println(string(d.Body))
+					break
+				}
 			}
-		}
+
+		}(url.Link)
 	}
 
-}
+	wg.Wait()
 
-func sendMsg(body string, ch *amqp.Channel, q amqp.Queue, ctx context.Context) {
-
-	err := ch.PublishWithContext(ctx,
-		"",     // exchange
-		q.Name, // routing key
-		false,  // mandatory
-		false,  // immediate
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "text/plain",
-			Body:         []byte(body),
-		})
-	errorhandlers.FailOnError(err)
-
-	log.Printf(" [x] Sent %s\n", body)
-}
-
-func randomString(l int) string {
-	bytes := make([]byte, l)
-	for i := 0; i < l; i++ {
-		bytes[i] = byte(randInt(65, 90))
-	}
-	return string(bytes)
-}
-
-func randInt(min int, max int) int {
-	return min + rand.Intn(max-min)
 }

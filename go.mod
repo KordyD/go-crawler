@@ -5,6 +5,7 @@ go 1.22.1
 require (
 	github.com/PuerkitoBio/purell v1.2.1
 	github.com/gocolly/colly v1.2.0
+	github.com/google/uuid v1.6.0
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/redis/go-redis/v9 v9.5.1
 	go.mongodb.org/mongo-driver v1.14.0

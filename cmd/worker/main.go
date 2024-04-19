@@ -67,6 +67,8 @@ func main() {
 	parsedData := make(chan entities.Url, numberOfThreads)
 	parsedUrls := make(chan string, numberOfThreads)
 
+	doneChan := make(chan string, 100)
+
 	for i := 0; i < numberOfThreads; i++ {
 		wg.Add(2)
 		go func() {
@@ -78,6 +80,7 @@ func main() {
 					continue
 				}
 				log.Printf("Set data in redis: %s", data.Link)
+				doneChan <- data.Link
 			}
 		}()
 		go func() {
@@ -106,21 +109,25 @@ func main() {
 
 	for d := range msgs {
 		log.Printf("Received a message: %s", d.Body)
+
 		go scrapper.Scrapper(string(d.Body), parsedData, parsedUrls)
-		err := ch.PublishWithContext(context.Background(),
-			"",
-			d.ReplyTo,
-			false,
-			false,
-			amqp091.Publishing{
-				ContentType:   "text/plain",
-				CorrelationId: d.CorrelationId,
-				Body:          []byte("done"),
-			})
-		if err != nil {
-			log.Panicln(err)
-		}
-		d.Ack(false)
+		go func() {
+			err := ch.PublishWithContext(context.Background(),
+				"",
+				d.ReplyTo,
+				false,
+				false,
+				amqp091.Publishing{
+					ContentType:   "text/plain",
+					CorrelationId: d.CorrelationId,
+					Body:          []byte(<-doneChan),
+				})
+			if err != nil {
+				log.Panicln(err)
+			}
+			d.Ack(false)
+		}()
+
 	}
 
 	wg.Wait()
