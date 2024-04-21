@@ -5,11 +5,11 @@ import (
 	"log"
 	"sync"
 
-	"github.com/kordyd/go-crawler/internal/db/redis"
 	"github.com/kordyd/go-crawler/internal/entities"
 	rabbitmq "github.com/kordyd/go-crawler/internal/rabbitMQ"
 	"github.com/kordyd/go-crawler/internal/scrapper"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -58,7 +58,21 @@ func main() {
 		log.Panicln(err)
 	}
 
-	client := redis.Connect()
+	contentRedis := redis.NewClient((&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	}))
+
+	defer contentRedis.Close()
+
+	linksToParse := redis.NewClient((&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       1,
+	}))
+
+	defer linksToParse.Close()
 
 	var wg sync.WaitGroup
 
@@ -74,32 +88,51 @@ func main() {
 		go func() {
 			defer wg.Done()
 			for data := range parsedData {
-				_, err = client.HSet(context.Background(), data.Link, "link", data.Link, "parsed", data.Parsed, "error", data.Error, "content", data.Content).Result()
+				if data.Error != "" {
+					_, err = linksToParse.SAdd(context.Background(), "errors", data.Link).Result()
+					if err != nil {
+						log.Println(err)
+					}
+					log.Println("Error with url", data.Error)
+					// doneChan <- entities.Url{Link: data.Link, Parsed: false, Error: data.Error}
+					doneChan <- data.Link
+					continue
+				}
+				_, err = contentRedis.Set(context.Background(), data.Link, data.Content, 0).Result()
 				if err != nil {
 					log.Println(err)
 					continue
 				}
 				log.Printf("Set data in redis: %s", data.Link)
+				_, err = linksToParse.SAdd(context.Background(), "parsed", data.Link).Result()
+				if err != nil {
+					log.Println(err)
+				}
+				// doneChan <- entities.Url{Link: data.Link, Parsed: true}
 				doneChan <- data.Link
 			}
 		}()
 		go func() {
 			defer wg.Done()
 			for url := range parsedUrls {
-				exists, err := client.Exists(context.Background(), url).Result()
+				isExist, err := linksToParse.SIsMember(context.Background(), "parsed", url).Result()
 				if err != nil {
 					log.Println(err)
 					continue
 				}
-				if exists == 0 {
-					_, err = client.HSet(context.Background(), url, "link", url, "parsed", false, "error", "", "content", "").Result()
-					if err != nil {
-						log.Println(err)
-						continue
-					}
+				if isExist {
+					log.Println(url, "already parsed")
+					continue
+				}
+				isAdded, err := linksToParse.SAdd(context.Background(), "toParse", url).Result()
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				if isAdded == 1 {
 					log.Printf("Set url to parse in redis: %s", url)
 				} else {
-					log.Printf("Key already exists in Redis: %s", url)
+					log.Printf("Value already exists %s", url)
 				}
 			}
 		}()
@@ -111,7 +144,8 @@ func main() {
 		log.Printf("Received a message: %s", d.Body)
 
 		go scrapper.Scrapper(string(d.Body), parsedData, parsedUrls)
-		go func() {
+		go func(d amqp091.Delivery) {
+			message := <-doneChan
 			err := ch.PublishWithContext(context.Background(),
 				"",
 				d.ReplyTo,
@@ -120,13 +154,14 @@ func main() {
 				amqp091.Publishing{
 					ContentType:   "text/plain",
 					CorrelationId: d.CorrelationId,
-					Body:          []byte(<-doneChan),
+					Body:          []byte(message),
 				})
 			if err != nil {
 				log.Panicln(err)
 			}
+			log.Println("Done!!!!", message)
 			d.Ack(false)
-		}()
+		}(d)
 
 	}
 

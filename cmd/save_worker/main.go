@@ -6,12 +6,17 @@ import (
 	"time"
 
 	"github.com/kordyd/go-crawler/internal/db/mongodb"
-	"github.com/kordyd/go-crawler/internal/db/redis"
 	"github.com/kordyd/go-crawler/internal/services"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
-	redisClient := redis.Connect()
+
+	redisClient := redis.NewClient((&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	}))
 
 	initialCount, err := redisClient.DBSize(context.Background()).Result()
 
@@ -34,8 +39,10 @@ func main() {
 		}
 	}()
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
+
+	coll := client.Database(mongoDBName).Collection(mongoCollectionName)
 
 	for {
 		<-ticker.C
@@ -47,14 +54,17 @@ func main() {
 
 		if currentCount == initialCount {
 			log.Println("Equal")
-			coll := client.Database(mongoDBName).Collection(mongoCollectionName)
 
 			if currentCount != 0 {
 				services.SaveParsedUrls(coll, redisClient)
 			}
 
-		} else {
-			log.Println("Not equal")
+		}
+
+		if currentCount >= 200 {
+			log.Println("Download content to db")
+			services.SaveParsedUrls(coll, redisClient)
+			log.Println("Download data complete")
 		}
 
 		initialCount = currentCount
