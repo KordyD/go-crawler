@@ -32,9 +32,14 @@ func Scrapper(url string, parsedData chan<- entities.Url, parsedUrls chan<- stri
 
 	c.OnHTML("a[href]", func(h *colly.HTMLElement) {
 		link := h.Attr("href")
+		if link == "" {
+			log.Println("Empty href attribute")
+			return
+		}
 		base, err := urlpkg.Parse(url)
 		if err != nil {
 			log.Println(err)
+			return
 		}
 
 		if base.Scheme != "https" && base.Scheme != "http" {
@@ -45,6 +50,7 @@ func Scrapper(url string, parsedData chan<- entities.Url, parsedUrls chan<- stri
 		u, err := urlpkg.Parse(link)
 		if err != nil {
 			log.Println(err)
+			return
 		}
 
 		urlToNormalize := base.ResolveReference(u)

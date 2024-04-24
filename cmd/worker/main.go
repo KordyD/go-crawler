@@ -157,7 +157,7 @@ func main() {
 					Body:          []byte(message),
 				})
 			if err != nil {
-				log.Panicln(err)
+				log.Println(err)
 			}
 			log.Println("Done!!!!", message)
 			d.Ack(false)

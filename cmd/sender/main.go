@@ -66,8 +66,8 @@ func main() {
 	go consumeReplies(msgs, linksToParse)
 
 	for {
-		log.Println("Start timer")
-		<-time.After(5 * time.Second)
+		// log.Println("Start timer")
+		// <-time.After(5 * time.Second)
 
 		log.Println("Fetching urls")
 		urls, err := linksToParse.SMembers(context.Background(), "toParse").Result()
