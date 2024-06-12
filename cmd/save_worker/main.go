@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kordyd/go-crawler/internal/db/mongodb"
+	"github.com/kordyd/go-crawler/internal/db/neo4jdb"
 	"github.com/kordyd/go-crawler/internal/services"
 	"github.com/redis/go-redis/v9"
 )
@@ -24,10 +24,10 @@ func main() {
 		log.Panicln(err)
 	}
 
-	mongoDBName := "Crawler"
-	mongoCollectionName := "URLs"
+	neo4jDBName := "Crawler"
+	neo4jCollectionName := "URLs"
 
-	client, disconnect, err := mongodb.Connect()
+	client, disconnect, err := neo4jdb.Connect()
 
 	if err != nil {
 		log.Fatal(err)
@@ -42,7 +42,7 @@ func main() {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
-	coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+	coll := client.Database(neo4jDBName).Collection(neo4jCollectionName)
 
 	for {
 		<-ticker.C

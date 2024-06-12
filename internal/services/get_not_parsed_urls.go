@@ -3,17 +3,17 @@ package services
 import (
 	"context"
 
-	"github.com/kordyd/go-crawler/internal/db/mongodb"
+	"github.com/kordyd/go-crawler/internal/db/neo4jdb"
 	"github.com/kordyd/go-crawler/internal/entities"
 	errorhandlers "github.com/kordyd/go-crawler/internal/error_handlers"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.neo4jdb.org/neo4j-driver/bson"
 )
 
 func GetNotParsedUrls() []entities.Url {
-	mongoDBName := "Crawler"
-	mongoCollectionName := "URLs"
+	neo4jDBName := "Crawler"
+	neo4jCollectionName := "URLs"
 
-	client, disconnect, err := mongodb.Connect()
+	client, disconnect, err := neo4jdb.Connect()
 
 	errorhandlers.FailOnError(err)
 
@@ -22,7 +22,7 @@ func GetNotParsedUrls() []entities.Url {
 		errorhandlers.FailOnError(err)
 	}()
 
-	coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+	coll := client.Database(neo4jDBName).Collection(neo4jCollectionName)
 
 	filter := bson.M{"parsed": false}
 	cursor, err := coll.Find(context.Background(), filter)

@@ -6,10 +6,10 @@ import (
 	"log"
 
 	"github.com/PuerkitoBio/purell"
-	"github.com/kordyd/go-crawler/internal/db/mongodb"
+	"github.com/kordyd/go-crawler/internal/db/neo4jdb"
 	"github.com/kordyd/go-crawler/internal/entities"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.neo4jdb.org/neo4j-driver/bson"
 )
 
 func main() {
@@ -48,10 +48,10 @@ func main() {
 		log.Panicln(err)
 	}
 
-	mongoDBName := "Crawler"
-	mongoCollectionName := "URLs"
+	neo4jDBName := "Crawler"
+	neo4jCollectionName := "URLs"
 
-	client, disconnect, err := mongodb.Connect()
+	client, disconnect, err := neo4jdb.Connect()
 
 	if err != nil {
 		log.Fatal(err)
@@ -63,7 +63,7 @@ func main() {
 		}
 	}()
 
-	coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+	coll := client.Database(neo4jDBName).Collection(neo4jCollectionName)
 
 	_, err = coll.DeleteMany(context.Background(), bson.D{})
 
@@ -79,10 +79,10 @@ func main() {
 
 	fmt.Println("Data insert complete:", number)
 
-	// mongoDBName := "Crawler"
-	// mongoCollectionName := "URLs"
+	// neo4jDBName := "Crawler"
+	// neo4jCollectionName := "URLs"
 
-	// client, disconnect, err := mongodb.Connect()
+	// client, disconnect, err := neo4jdb.Connect()
 
 	// if err != nil {
 	// 	log.Fatal(err)
@@ -94,23 +94,23 @@ func main() {
 	// 	}
 	// }()
 
-	// coll := client.Database(mongoDBName).Collection(mongoCollectionName)
+	// coll := client.Database(neo4jDBName).Collection(neo4jCollectionName)
 
 	// insertTestData(coll)
 
 }
 
-// func insertTestData(mongoCollection *mongo.Collection) {
+// func insertTestData(neo4jCollection *neo4j.Collection) {
 
-// 	_, err := mongoCollection.DeleteMany(context.Background(), bson.D{})
+// 	_, err := neo4jCollection.DeleteMany(context.Background(), bson.D{})
 
 // 	if err != nil {
 // 		log.Fatalln("Failed to delete data")
 // 	}
 
-// 	_, err = mongoCollection.Indexes().CreateOne(
+// 	_, err = neo4jCollection.Indexes().CreateOne(
 // 		context.Background(),
-// 		mongo.IndexModel{
+// 		neo4j.IndexModel{
 // 			Keys:    bson.M{"link": 1},
 // 			Options: options.Index().SetUnique(true),
 // 		},
@@ -143,7 +143,7 @@ func main() {
 // 		urls = append(urls, link)
 // 	}
 
-// 	_, err = mongoCollection.InsertMany(context.Background(), urls)
+// 	_, err = neo4jCollection.InsertMany(context.Background(), urls)
 
 // 	if err != nil {
 // 		log.Fatalln("Failed to insert data")
