@@ -8,4 +8,5 @@ type Url struct {
 	Parsed  bool               `bson:"parsed,omitempty"`
 	Error   string             `bson:"error,omitempty"`
 	Content string             `bson:"content,omitempty"`
+	Rank    float64            `bson:"rank,omitempty"`
 }
